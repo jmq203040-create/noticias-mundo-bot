@@ -1,0 +1,49 @@
+import feedparser
+import requests
+import os
+from datetime import datetime
+
+# === CONFIGURA AQUÍ ===
+TELEGRAM_TOKEN = "TU_TOKEN_AQUI"          # del BotFather
+CHAT_ID = "-1001234567890"                # tu canal/grupo (con el -100 si es canal)
+RSS_FEEDS = [
+    "https://news.google.com/rss",                    # Top mundial (lo más relevante)
+    "https://feeds.bbci.co.uk/news/world/rss.xml",    # BBC Mundo
+    "https://www.reuters.com/arc/outboundfeeds/rss/?outputType=xml",  # Reuters
+    "https://feeds.apnews.com/rss/apf-topnews",       # Associated Press
+]
+
+def get_top_news():
+    news_list = []
+    seen = set()
+    
+    for url in RSS_FEEDS:
+        feed = feedparser.parse(url)
+        for entry in feed.entries[:8]:  # tomamos las más nuevas de cada fuente
+            title = entry.title
+            if title in seen: continue
+            seen.add(title)
+            
+            summary = entry.description[:200] + "..." if hasattr(entry, 'description') else ""
+            link = entry.link
+            news_list.append(f"📰 <b>{title}</b>\n{summary}\n🔗 {link}\n")
+    
+    # Ordenamos por relevancia (las más recientes primero) y tomamos las 8 mejores
+    return "\n\n".join(news_list[:8])
+
+def send_telegram(message):
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": CHAT_ID,
+        "text": f"🌍 <b>Noticias Más Relevantes del Mundo</b> - {datetime.now().strftime('%d/%m %H:%M')}\n\n{message}",
+        "parse_mode": "HTML"
+    }
+    requests.post(url, json=payload)
+
+if __name__ == "__main__":
+    news = get_top_news()
+    if news:
+        send_telegram(news)
+        print("✅ Noticias enviadas!")
+    else:
+        print("❌ No se encontraron noticias")
